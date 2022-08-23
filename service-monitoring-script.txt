@@ -1,0 +1,80 @@
+### Windows Powershell Service Monitoring Script ####
+
+###Features
+
+## 1. Graphical message box
+## 2. Sleep enabled
+## 3. Email enabled
+## 4. Continous monitoring enabled
+## 5. This script cannot be stopped
+
+############## For .Net Graphical message box
+
+Add-Type -AssemblyName PresentationCore,PresentationFramework
+
+
+################################ EMAIL INFORMATIONS ################################################################################
+
+$username = "mani@paylin.com"
+$passwd = Get-Content 'C:\Payilagam\secured.txt' 
+$ps = ConvertTo-SecureString -AsPlainText $passwd -Force
+$SecureString = $ps
+$MySecureCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $username,$SecureString
+
+$From = "mani@paylin.com"
+$To = "muthu@paylin.com"
+$Cc = "mani@paylin.com"
+$Attachment = "C:\Payilagam\Spoolerlog.txt"
+$Subject1 = "Critical Status - Spooler Service Stopped Alert"
+$Subject2 = "Normal Status - Spooler Service Started"
+
+$Body1 = "Hello,
+This email is generated from the powershell script.
+You are receiving this email because of the Spooler service in VM - 192.168.20.30  has been unfortunately stopped.
+kindly find the attached log file in order to know the reason"
+
+$Body2 = "Hello,
+This email is generated from powershell script.
+You are receiving this email because of the Spooler service in VM - 192.168.20.30  has been successfully started."
+
+$SMTPServer = "192.168.1.30"
+$SMTPPort = "25“
+
+#######################################################################################################################################
+$val = "Start"
+
+while ($val -ne "Stop")
+
+{
+
+################### Selecting our service
+
+$svs = Get-Service | WHERE {$_.Name -eq "spooler"}
+
+
+
+################# Condition - If our selected service got stopped
+
+if($svs.Status -eq "Stopped"){
+
+Get-EventLog system -newest 10 | Format-List >> C:\Payilagam\Spoolerlog.txt
+Send-MailMessage -From $From -to $To -Cc $Cc -Subject $Subject1 -Body $Body1 -SmtpServer $SMTPServer -port $SMTPPort -Credential $MySecureCreds  -Attachments $Attachment
+
+Start-Service $svs
+
+
+	if($svs.Status -eq "Running"){
+
+		$MessageboxTitle = “Spooler Service - Alert”
+		$Messageboxbody = “Spooler service got stopped and started successfully. Email Alert has been sent to support@domain.com”
+		$MessageIcon = [System.Windows.MessageBoxImage]::Warning
+		$ButtonType = [System.Windows.MessageBoxButton]::Ok
+		Send-MailMessage -From $From -to $To -Cc $Cc -Subject $Subject2 -Body $Body2 -SmtpServer $SMTPServer -port $SMTPPort -Credential $MySecureCreds
+
+		$Result1 = [System.Windows.MessageBox]::Show($Messageboxbody,$MessageboxTitle,$ButtonType,$MessageIcon)
+
+start-sleep -seconds 60
+		
+}
+}
+}
